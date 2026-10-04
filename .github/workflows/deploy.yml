@@ -16,7 +16,7 @@ concurrency:
 jobs:
   deploy:
     name: Deploy to production (SSH)
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: [self-hosted, Linux, X64, docker]
     # main 에 대한 검증은 CI 워크플로우(ci.yml)가 동일 푸시에서 병렬 수행한다.
     environment: production
 
