@@ -57,42 +57,76 @@ jobs:
     needs: changes
     if: needs.changes.outputs.backend == 'true'
     runs-on: [self-hosted, Linux, X64, docker]
-    # Linux 러너 전환으로 GitHub Actions 서비스 컨테이너를 쓸 수 있어
-    # docker run 수동 기동/정리 스텝을 services: 로 대체했다. 호스트 포트를
-    # 고정하지 않고(`ports: [3306]`) Docker가 빈 포트를 임의 할당하게 해
-    # 조직 공용 러너에서 동시에 도는 다른 저장소 CI와의 포트 충돌을 피한다.
-    # 헬스체크가 끝난 뒤에야 스텝이 시작되므로 별도 폴링 루프가 필요 없다.
-    services:
-      mysql:
-        image: mysql:8.0
-        env:
-          MYSQL_DATABASE: aicura
-          MYSQL_USER: aicura
-          MYSQL_PASSWORD: "Aicura@2026!Dev"
-          MYSQL_ROOT_PASSWORD: root
-        ports:
-          - 3306
-        options: >-
-          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot --silent"
-          --health-interval=2s
-          --health-timeout=5s
-          --health-retries=15
+    # MySQL 은 docker run 으로 직접 띄운다. 러너가 도커 컨테이너라 services: 가 호스트에
+    # 게시한 포트(127.0.0.1)에는 닿지 못한다("Connection refused"). 실행별 전용 네트워크에
+    # 러너와 MySQL 을 같이 붙이고 컨테이너 이름으로 접속한다.
+    env:
+      MYSQL_CONTAINER: aicura-ci-mysql-${{ github.run_id }}
+      MYSQL_NETWORK: aicura-ci-net-${{ github.run_id }}
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: MySQL 포트 확인 (services 가 임의 할당한 호스트 포트)
-        run: echo "MYSQL_PORT=${{ job.services.mysql.ports['3306'] }}" >> "$GITHUB_ENV"
+      - name: MySQL 컨테이너 기동
+        run: |
+          docker rm -f -v "$MYSQL_CONTAINER" >/dev/null 2>&1 || true
+          docker network create "$MYSQL_NETWORK"
+          docker network connect "$MYSQL_NETWORK" "$(hostname)"
+          docker run -d --name "$MYSQL_CONTAINER" \
+            --network "$MYSQL_NETWORK" \
+            -e MYSQL_DATABASE=aicura \
+            -e MYSQL_USER=aicura \
+            -e MYSQL_PASSWORD='Aicura@2026!Dev' \
+            -e MYSQL_ROOT_PASSWORD=root \
+            mysql:8.0
+          # 초기화 중 임시 서버 단계의 ping 성공을 넘기려고 실제 인증 쿼리로 대기한다.
+          ready=0
+          for i in $(seq 1 60); do
+            docker exec "$MYSQL_CONTAINER" mysql -uroot -proot -e "SELECT 1" aicura >/dev/null 2>&1 && { ready=1; break; }
+            sleep 1
+          done
+          if [ "$ready" != "1" ]; then
+            echo "::error::MySQL 이 60초 안에 준비되지 않았습니다"
+            docker logs "$MYSQL_CONTAINER" 2>&1 | tail -20
+            exit 1
+          fi
 
-      - name: PHP 설정
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: "8.5"
-          extensions: mbstring, intl, mysqli, curl, dom, xml, tokenizer
-          # phpunit.dist.xml 이 failOnWarning + <coverage> 를 켜 두어
-          # 커버리지 드라이버가 없으면 경고→실패. pcov 로 드라이버 제공.
-          coverage: pcov
-          tools: composer:v2
+      - name: PHP 8.4+ 보장 (러너 이미지 편차 대응)
+        run: |
+          APT="sudo apt-get -o DPkg::Lock::Timeout=300"
+          php_ok() { command -v php >/dev/null && php -r 'exit(version_compare(PHP_VERSION, "8.4", ">=") ? 0 : 1);'; }
+          # 조직 러너 이미지가 제각각이다 — ondrej PPA 가 붙은 러너는 php-cli 가 8.5 지만,
+          # 네이티브 Ubuntu 24.04 러너(runner-03)는 8.3.6 이라 composer.json 요구를 못 채워
+          # composer install 이 실패했다. 8.4 미만이면 PPA 로 8.5 를 설치해 기본 php 로 지정한다.
+          # (Ubuntu 26.04 러너는 네이티브가 8.5 라 이 분기를 타지 않는다.)
+          if ! php_ok; then
+            $APT update -qq
+            command -v php >/dev/null || $APT install -y --no-install-recommends php-cli
+            if ! php_ok; then
+              $APT install -y --no-install-recommends software-properties-common
+              sudo add-apt-repository -y ppa:ondrej/php
+              $APT update -qq
+              $APT install -y --no-install-recommends php8.5-cli
+              sudo update-alternatives --set php /usr/bin/php8.5
+            fi
+          fi
+          # 확장은 지금 PATH 의 php 버전에 맞춰 버전 명시 패키지로, 없는 것만 설치한다
+          # (버전 없는 php-intl 등은 다른 버전을 끌어와 쓰는 php 에 안 붙을 수 있다).
+          V="$(php -r 'echo PHP_MAJOR_VERSION . "." . PHP_MINOR_VERSION;')"
+          MISSING=""
+          for item in mbstring:mbstring intl:intl mysql:mysqli xml:dom curl:curl zip:zip sqlite3:sqlite3; do
+            php -m | grep -qix "${item#*:}" || MISSING="$MISSING php${V}-${item%%:*}"
+          done
+          # 커버리지 드라이버(pcov/xdebug)가 없으면 phpunit 이 경고 → failOnWarning 으로 실패한다.
+          php -m | grep -qiE '^(pcov|xdebug)$' || MISSING="$MISSING php${V}-xdebug"
+          if [ -n "$MISSING" ]; then
+            echo "설치 필요:$MISSING"
+            $APT update -qq
+            $APT install -y --no-install-recommends $MISSING
+          fi
+          command -v composer >/dev/null || $APT install -y --no-install-recommends composer
+          php -v
+          composer --version
 
       - name: Composer 캐시
         uses: actions/cache@v4
@@ -110,8 +144,8 @@ jobs:
           {
             echo "app.baseURL = http://localhost:8300/"
             echo "JWT_SECRET = ci-test-secret-key-please-change-32chars-min"
-            echo "database.default.hostname = 127.0.0.1"
-            echo "database.default.port = ${MYSQL_PORT}"
+            echo "database.default.hostname = ${MYSQL_CONTAINER}"
+            echo "database.default.port = 3306"
             echo "database.default.database = aicura"
             echo "database.default.username = aicura"
             echo "database.default.password = Aicura@2026!Dev"
@@ -132,16 +166,25 @@ jobs:
       - name: 정적 분석 (PHPStan)
         run: composer analyse
 
-      - name: 테스트 DB 연결 정보 보정 (localhost → 127.0.0.1, 동적 포트 반영)
+      - name: 테스트 DB 연결 정보 보정 (localhost → MySQL 컨테이너 이름)
         # Linux 러너의 GNU sed 문법. -i 뒤에 백업 확장자를 붙이지 않는다(BSD sed와 다름).
         run: |
           sed -i \
-            -e 's#name="database.tests.hostname" value="localhost"#name="database.tests.hostname" value="127.0.0.1"#' \
-            -e "s#name=\"database.tests.port\" value=\"3306\"#name=\"database.tests.port\" value=\"${MYSQL_PORT}\"#" \
+            -e "s#name=\"database.tests.hostname\" value=\"localhost\"#name=\"database.tests.hostname\" value=\"${MYSQL_CONTAINER}\"#" \
             phpunit.dist.xml
 
       - name: 단위·DB 테스트 (PHPUnit)
+        env:
+          # xdebug 는 기본 모드가 off — 명시하지 않으면 커버리지 드라이버 없음 경고로 실패한다.
+          XDEBUG_MODE: coverage
         run: composer test
+
+      - name: 컨테이너 정리
+        if: always()
+        run: |
+          docker rm -f -v "$MYSQL_CONTAINER" >/dev/null 2>&1 || true
+          docker network disconnect -f "$MYSQL_NETWORK" "$(hostname)" >/dev/null 2>&1 || true
+          docker network rm "$MYSQL_NETWORK" >/dev/null 2>&1 || true
 
   # ───────────────────────────── 앱 (Flutter) ─────────────────────────────
   app:
