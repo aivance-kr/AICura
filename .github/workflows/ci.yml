@@ -23,7 +23,7 @@ jobs:
   # (문서 전용 → 둘 다 skip / 백엔드만 → app skip / 앱만 → backend skip)
   changes:
     name: 변경 영역 감지
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: [self-hosted, Linux, X64, docker]
     outputs:
       backend: ${{ steps.filter.outputs.backend }}
       app: ${{ steps.filter.outputs.app }}
@@ -56,7 +56,7 @@ jobs:
     name: Backend (PHP 8.5 · PHPStan · PHPUnit)
     needs: changes
     if: needs.changes.outputs.backend == 'true'
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: [self-hosted, Linux, X64, docker]
     # Linux 러너 전환으로 GitHub Actions 서비스 컨테이너를 쓸 수 있어
     # docker run 수동 기동/정리 스텝을 services: 로 대체했다. 호스트 포트를
     # 고정하지 않고(`ports: [3306]`) Docker가 빈 포트를 임의 할당하게 해
@@ -148,7 +148,7 @@ jobs:
     name: App (Flutter · analyze · test)
     needs: changes
     if: needs.changes.outputs.app == 'true'
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: [self-hosted, Linux, X64, docker]
     defaults:
       run:
         working-directory: app-mobile
@@ -181,7 +181,7 @@ jobs:
     name: Slack 알림 (CI 실패)
     needs: [backend, app]
     if: failure() && github.event_name == 'push'
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: [self-hosted, Linux, X64, docker]
     steps:
       - uses: actions/checkout@v4
 
