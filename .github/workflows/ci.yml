@@ -228,6 +228,11 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Flutter SDK git safe.directory 등록
+        # 러너가 root 로 도는데 hostedtoolcache 의 Flutter SDK 소유자가 달라 git 이
+        # "detected dubious ownership" 으로 거부하고 flutter 명령이 exit 128 로 죽는다.
+        run: git config --global --add safe.directory "$FLUTTER_ROOT"
+
       - name: 의존성 설치
         run: flutter pub get
 
