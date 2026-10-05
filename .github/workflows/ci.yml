@@ -78,7 +78,12 @@ jobs:
             -e MYSQL_USER=aicura \
             -e MYSQL_PASSWORD='Aicura@2026!Dev' \
             -e MYSQL_ROOT_PASSWORD=root \
-            mysql:8.0
+            --tmpfs /var/lib/mysql \
+            mysql:8.0 \
+            --innodb-flush-log-at-trx-commit=0 \
+            --innodb-flush-method=nosync \
+            --sync-binlog=0 \
+            --innodb-redo-log-capacity=536870912
           # 초기화 중 임시 서버 단계의 ping 성공을 넘기려고 실제 인증 쿼리로 대기한다.
           ready=0
           for i in $(seq 1 60); do
