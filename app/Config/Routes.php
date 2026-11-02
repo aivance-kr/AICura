@@ -1,12 +1,8 @@
 <?php
 
-use CodeIgniter\HTTP\RedirectResponse;
 use CodeIgniter\Router\RouteCollection;
 
 /** @var RouteCollection $routes */
-
-// ── 루트 진입 → 관리자 로그인 리다이렉트 ──────────────────
-$routes->get('/', static fn (): RedirectResponse => redirect()->to('/admin/login'));
 
 // ── API Docs (RapiDoc) ────────────────────────────────
 $routes->get('api/docs', 'Api\DocsController::index');
@@ -293,6 +289,9 @@ $routes->group('api/v1', ['namespace' => 'App\Controllers\Api\V1'], static funct
 // 인증 없이 크롤링 가능한 HTML 을 제공한다 (이슈 #137 Phase 1 골격).
 // 현재는 이벤트 목록·상세만. 병원/후기/가이드는 후속 이슈(③·⑤)에서 추가.
 $routes->group('', ['namespace' => 'App\Controllers\Web'], static function (RouteCollection $routes): void {
+    // 랜딩(서비스 소개) — 루트 진입점
+    $routes->get('/', 'LandingController::index');
+
     $routes->get('events', 'EventPageController::index');
     $routes->get('events/(:num)', 'EventPageController::show/$1');
 

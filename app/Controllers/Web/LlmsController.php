@@ -35,6 +35,7 @@ class LlmsController extends BaseController
             '아래는 AI 검색·생성형 엔진이 참고할 주요 콘텐츠 목록입니다. 모든 링크는 크롤링 가능한 공개 페이지입니다.',
             '',
             '## 주요 페이지',
+            '- [서비스 소개](' . base_url('/') . '): AICura가 무엇이고 누구를 위한 서비스인지',
             '- [성형·시술 이벤트](' . base_url('events') . '): 진행 중인 성형·시술 이벤트 목록',
             '- [병원 찾기](' . base_url('hospitals') . '): 지역·진료과별 성형·시술 병원',
             '- [실사용 후기](' . base_url('reviews') . '): 실제 이용자 후기와 평점',

@@ -25,18 +25,20 @@ $meta['canonical'] = (string) ($meta['canonical'] ?? current_url());
     <link rel="apple-touch-icon" sizes="180x180" href="<?= base_url('assets/favicon/apple-touch-icon.png') ?>">
     <link rel="manifest" href="<?= base_url('site.webmanifest') ?>">
     <link rel="stylesheet" href="<?= base_url('assets/css/aicura.css') ?>">
+    <link rel="stylesheet" href="<?= base_url('assets/css/web.css') ?>">
 
     <!-- JSON-LD 구조화 데이터 (이슈 #145) — 상세 페이지에서 $jsonLd 전달 시 주입 -->
     <?= $this->include('web/partials/json_ld') ?>
 </head>
 <body>
     <header class="web-header">
-        <a href="<?= base_url('events') ?>" class="web-logo">AICura</a>
+        <a href="<?= base_url('/') ?>" class="web-logo">AICura</a>
         <nav class="web-nav">
             <a href="<?= base_url('events') ?>">이벤트</a>
             <a href="<?= base_url('hospitals') ?>">병원</a>
             <a href="<?= base_url('reviews') ?>">후기</a>
             <a href="<?= base_url('guides') ?>">가이드</a>
+            <a href="<?= base_url('portal/login') ?>" class="web-nav-cta">광고주 로그인</a>
         </nav>
     </header>
 
