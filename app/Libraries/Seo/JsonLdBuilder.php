@@ -263,6 +263,44 @@ final class JsonLdBuilder
     }
 
     /**
+     * 사이트 운영 주체 → Organization
+     *
+     * @return array<string, mixed>
+     */
+    public static function organization(string $url, string $logoUrl, string $description): array
+    {
+        return [
+            '@context'      => self::CONTEXT,
+            '@type'         => 'Organization',
+            '@id'           => $url . '#organization',
+            'name'          => 'AICura',
+            'alternateName' => ['아이큐라', 'AI Cura'],
+            'url'           => $url,
+            'logo'          => $logoUrl,
+            'description'   => $description,
+        ];
+    }
+
+    /**
+     * 사이트 → WebSite (발행 주체는 organization @id 로 연결)
+     *
+     * @return array<string, mixed>
+     */
+    public static function website(string $url, string $description): array
+    {
+        return [
+            '@context'    => self::CONTEXT,
+            '@type'       => 'WebSite',
+            '@id'         => $url . '#website',
+            'name'        => 'AICura',
+            'url'         => $url,
+            'inLanguage'  => 'ko-KR',
+            'description' => $description,
+            'publisher'   => ['@id' => $url . '#organization'],
+        ];
+    }
+
+    /**
      * schema 배열(들)을 `<script type="application/ld+json">` 블록으로 직렬화.
      *
      * @param array<int, array<string, mixed>> $schemas

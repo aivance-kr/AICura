@@ -64,6 +64,7 @@ final readonly class SitemapService
         $urls = [];
 
         // 정적 진입 페이지
+        $urls[] = $this->url(base_url('/'), null, 'weekly', '1.0');
         $urls[] = $this->url(base_url('events'), null, 'daily', '0.8');
         $urls[] = $this->url(base_url('hospitals'), null, 'weekly', '0.6');
         $urls[] = $this->url(base_url('reviews'), null, 'daily', '0.6');

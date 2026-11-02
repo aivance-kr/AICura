@@ -1,0 +1,27 @@
+/* 공개 웹(SSR) 공통 + 랜딩 — aicura.css 변수 사용 */
+.web-header { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:14px 24px; border-bottom:1px solid var(--color-border); }
+.web-logo { font-weight:700; font-size:20px; color:var(--color-primary); text-decoration:none; }
+.web-nav { display:flex; flex-wrap:wrap; align-items:center; gap:16px; }
+.web-nav a { color:var(--color-text); text-decoration:none; font-size:14px; }
+.web-nav a:hover { color:var(--color-primary); }
+.web-nav .web-nav-cta { padding:6px 12px; border:1px solid var(--color-primary); border-radius:var(--radius-full); color:var(--color-primary); }
+.web-main { max-width:1040px; margin:0 auto; padding:32px 24px; }
+.web-footer { padding:24px; text-align:center; color:var(--color-text-muted); font-size:13px; border-top:1px solid var(--color-border); }
+
+.lp-hero { padding:56px 0 40px; text-align:center; }
+.lp-eyebrow { color:var(--color-secondary); font-weight:600; margin-bottom:12px; }
+.lp-hero h1 { font-size:clamp(26px,5vw,40px); }
+.lp-lead { max-width:640px; margin:20px auto 0; color:var(--color-text-muted); }
+.lp-actions { display:flex; justify-content:center; flex-wrap:wrap; gap:12px; margin-top:28px; }
+.lp-btn { padding:12px 22px; border:1px solid var(--color-border-strong); border-radius:var(--radius-full); color:var(--color-text); text-decoration:none; font-weight:600; }
+.lp-btn-primary { background:var(--color-primary); border-color:var(--color-primary); color:#fff; }
+.lp-btn-primary:hover { background:var(--color-primary-hover); }
+.lp-section { padding:36px 0; }
+.lp-sub { color:var(--color-text-muted); margin:6px 0 20px; }
+.lp-grid { list-style:none; padding:0; display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:16px; }
+.lp-grid li { padding:20px; background:var(--color-bg-surface); border-radius:var(--radius-lg); }
+.lp-grid h3 { margin-bottom:8px; }
+.lp-grid a { color:inherit; text-decoration:none; }
+.lp-grid p { color:var(--color-text-muted); font-size:14px; }
+.lp-faq dt { font-weight:600; margin-top:16px; }
+.lp-faq dd { margin:6px 0 0; color:var(--color-text-muted); }
