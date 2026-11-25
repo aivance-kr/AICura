@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
 #
-# pre-push — 검증 게이트: dev 로 가는 푸시만 로컬에서 CI(backend·app) 검사를 수행한다.
+# pre-push — 검증 게이트: main 외 모든 브랜치(feature/* 포함) 푸시에서 로컬로 CI(backend·app) 검사를 수행한다(PR 전 게이트).
 #   - main 직접 푸시   → 무조건 차단 (배포는 dev → main PR(merge commit)로만)
-#   - feature/* 푸시   → 검사 없이 통과 (작업 중 빠른 반복을 막지 않기 위해)
-#   - dev 푸시         → 변경 파일 종류에 따라 필요한 검사만 실행
+#   - 그 외 푸시       → 변경 파일 종류에 따라 필요한 검사만 실행
 #     - PHP 변경(app-mobile 제외) → composer check  (cs → analyse → test, CI backend 잡과 동일)
 #     - app-mobile 변경           → dart format 검사 · flutter analyze · flutter test (CI app 잡과 동일)
 #     - 문서 전용 등 그 외        → 검사 없이 즉시 통과
@@ -30,9 +29,6 @@ while read -r _local_ref local_sha remote_ref remote_sha; do
 
     branch="${remote_ref#refs/heads/}"
     [ "$branch" = "main" ] && block_main
-    case "$branch" in
-        feature/*) continue ;;                        # feature/* 는 검사하지 않는다
-    esac
 
     should_check=1
     if [ "$remote_sha" = "$ZERO" ]; then
@@ -49,15 +45,12 @@ done
 if [ "$lines_read" -eq 0 ]; then
     current_branch="$(git symbolic-ref --short HEAD 2>/dev/null || true)"
     [ "$current_branch" = "main" ] && block_main
-    case "$current_branch" in
-        feature/*) exit 0 ;;
-    esac
     should_check=1
     changed="$(git diff --name-only origin/dev...HEAD 2>/dev/null || true)"
 fi
 
 if [ "$should_check" -eq 0 ]; then
-    exit 0   # 이번 푸시에 dev 타겟이 없음(feature/* 만 푸시됨) — 검사 생략
+    exit 0   # 이번 푸시에 검사 대상이 없음(삭제 푸시만) — 검사 생략
 fi
 
 php_changed="$(printf '%s\n' "$changed" | grep -E '\.php$' | grep -vE '^app-mobile/' || true)"
