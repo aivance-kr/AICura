@@ -486,7 +486,7 @@ flutter analyze && flutter test
 3. `composer install --no-dev --optimize-autoloader`
 4. `php spark migrate --all -f` — 출력을 검사해 예외 감지 시 배포 중단(spark 는 실패해도 exit 0)
 5. `php spark cache:clear`
-6. `sudo -n systemctl reload apache2` — 아파치 리로드(무중단). PHP 는 PHP-FPM 이 실행하며, OPcache 는 `opcache.validate_timestamps` 로 바뀐 파일을 다시 읽는다
+6. `sudo -n systemctl reload apache2` + 실행 중인 `php*-fpm` 리로드 — 무중단, OPcache 갱신(FPM 리로드가 sudo 권한 부족으로 실패하면 경고만 남긴다)
 
 ### 필요한 GitHub Secrets (`production` 환경)
 
@@ -506,8 +506,8 @@ git remote set-url origin git@github.com:aivance-kr/AICura.git
 
 # 2) 프로덕션 .env 에 실제 DB 접속 정보 (없으면 migrate 시 Access denied)
 
-# 3) 아파치 리로드용 비밀번호 없는 sudo
-echo '<DEPLOY_USER> ALL=(ALL) NOPASSWD: /usr/bin/systemctl reload apache2' \
+# 3) 아파치·PHP-FPM 리로드용 비밀번호 없는 sudo
+echo '<DEPLOY_USER> ALL=(ALL) NOPASSWD: /usr/bin/systemctl reload apache2, /usr/bin/systemctl reload php8.5-fpm' \
   | sudo tee /etc/sudoers.d/aicura-deploy
 sudo chmod 440 /etc/sudoers.d/aicura-deploy && sudo visudo -c
 
@@ -519,7 +519,7 @@ sudo chmod -R 2775 <DEPLOY_PATH>/writable   # 2xxx = setgid: 새 파일이 www-d
 
 > **참고**: 아파치 `DocumentRoot` 는 프로젝트 루트가 아니라 `public/` 을 가리켜야 하며,
 > `writable/` 는 아파치 실행 유저(`www-data`)가 쓸 수 있어야 한다.
-> PHP 는 PHP-FPM(`php8.5-fpm`)이 실행한다. 배포 즉시 OPcache 를 비우려면 sudoers 와 배포 워크플로의 리로드 대상에 `php8.5-fpm` 을 추가한다.
+> PHP 는 PHP-FPM(`php8.5-fpm`)이 실행한다. 배포 워크플로가 실행 중인 `php*-fpm` 서비스를 찾아 리로드한다.
 
 > **writable 소유권 주의**: 런타임에 아파치(`www-data`)가 `writable/cache`·`session` 에
 > 파일을 만들면 배포 계정이 소유하지 않아 `chmod` 가 실패할 수 있다. 배포 워크플로우는
@@ -549,7 +549,7 @@ cd <DEPLOY_PATH> && php spark db:seed AdminUserSeeder
 | MySQL | 8.0+ | 데이터베이스 |
 
 - 배포 자동화(SSH)는 위 [CD (배포)](#cd-배포) 참고 — deploy key · `.env` · NOPASSWD sudo 필요
-- OPcache 즉시 갱신은 `sudo systemctl reload php8.5-fpm`(무중단). 배포 워크플로는 현재 `apache2` 만 리로드하므로 바뀐 파일은 `opcache.validate_timestamps` 로 반영된다
+- OPcache 갱신은 `sudo systemctl reload php8.5-fpm`(무중단). 배포 워크플로가 자동으로 한다
 
 ### 로컬 개발
 
