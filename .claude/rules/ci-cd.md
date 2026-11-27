@@ -102,7 +102,7 @@ GitHub 호스팅 러너(`ubuntu-latest`)가 아니라 **조직(`aivance-kr`) 공
 - **트리거**: `main` push + `workflow_dispatch`(수동·롤백)
 - **동시성**: `deploy-production` 그룹 — 배포 동시 실행 1개, `cancel-in-progress: false`
 - **러너**: `[self-hosted, Linux, X64]` (ci.yml 과 동일 이유·동일 조직 러너). `appleboy/ssh-action` 을 쓸 수도 있지만, 검증된 기존 방식대로 러너 내장 `ssh` 클라이언트로 직접 접속하는 `run:` 스텝을 유지한다. `sudo -n systemctl reload apache2` 가 상시 프로세스라 pty 를 할당하면 SSH 세션이 끝나지 않으므로 `-t`/`-tt` 없이 접속한다.
-- **대상**: Ubuntu + mod_php 아파치 단일 서버
+- **대상**: Ubuntu + 아파치 + PHP-FPM(`php8.5-fpm`) 단일 서버
 
 ### 배포 절차 (서버 SSH 실행)
 
@@ -111,7 +111,7 @@ GitHub 호스팅 러너(`ubuntu-latest`)가 아니라 **조직(`aivance-kr`) 공
 3. `composer install --no-dev --optimize-autoloader`
 4. `php spark migrate --all -f` — 출력을 grep 검사해 예외 감지 시 `exit 1` 로 배포 중단
 5. `php spark cache:clear`
-6. `sudo -n systemctl reload apache2` — OPcache 갱신(무중단)
+6. `sudo -n systemctl reload apache2` — 아파치 리로드(무중단). OPcache 는 PHP-FPM 의 `opcache.validate_timestamps` 로 갱신된다
 
 > **spark migrate 함정**: DB 연결 실패·마이그레이션 예외가 나도 종료코드 0 을 반환한다. `set -e` 로 못 잡으므로 출력을 캡처해 예외 패턴(`[...Exception]`·`Unable to connect`·`Access denied`)을 직접 검사하고 실패 시 배포를 중단한다.
 

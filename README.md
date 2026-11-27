@@ -18,7 +18,7 @@ CodeIgniter 4 단일 프로젝트에 네 개의 진입면(surface)이 공존한�
 | 항목 | 내용 |
 |------|------|
 | **스택** | PHP 8.4+ (CLI) / 8.5 (FrankenPHP) · CodeIgniter 4 |
-| **웹 서버** | FrankenPHP(로컬 `make serve`) / 아파치 mod_php(프로덕션) |
+| **웹 서버** | FrankenPHP(로컬 `make serve`) / 아파치 + PHP-FPM(프로덕션) |
 | **API 문서** | RapiDoc (`/api/docs`) — `zircote/swagger-php` 로 스펙 생성 |
 | **AI** | Groq(`llama-3.3-70b-versatile`) — 일일 보고서·리드 분석·후기 품질·카피·컴플라이언스 |
 | **모바일 앱** | Flutter (`app-mobile/`) |
@@ -477,7 +477,7 @@ flutter analyze && flutter test
 |------|------|
 | **트리거** | `main` push + `workflow_dispatch`(수동 실행·롤백) |
 | **동시성 제어** | `deploy-production` 그룹으로 배포 동시 실행 1개만 (`cancel-in-progress: false`) |
-| **대상** | Ubuntu + mod_php 아파치 단일 서버 |
+| **대상** | Ubuntu + 아파치(mpm_event) + PHP-FPM(`php8.5-fpm`) 단일 서버 |
 
 ### 배포 절차 (서버에서 SSH로 실행)
 
@@ -486,7 +486,7 @@ flutter analyze && flutter test
 3. `composer install --no-dev --optimize-autoloader`
 4. `php spark migrate --all -f` — 출력을 검사해 예외 감지 시 배포 중단(spark 는 실패해도 exit 0)
 5. `php spark cache:clear`
-6. `sudo -n systemctl reload apache2` — OPcache 갱신(무중단)
+6. `sudo -n systemctl reload apache2` — 아파치 리로드(무중단). PHP 는 PHP-FPM 이 실행하며, OPcache 는 `opcache.validate_timestamps` 로 바뀐 파일을 다시 읽는다
 
 ### 필요한 GitHub Secrets (`production` 환경)
 
@@ -519,7 +519,7 @@ sudo chmod -R 2775 <DEPLOY_PATH>/writable   # 2xxx = setgid: 새 파일이 www-d
 
 > **참고**: 아파치 `DocumentRoot` 는 프로젝트 루트가 아니라 `public/` 을 가리켜야 하며,
 > `writable/` 는 아파치 실행 유저(`www-data`)가 쓸 수 있어야 한다.
-> PHP-FPM 구성이면 리로드 대상을 `apache2` 대신 `php8.4-fpm` 으로 바꾼다.
+> PHP 는 PHP-FPM(`php8.5-fpm`)이 실행한다. 배포 즉시 OPcache 를 비우려면 sudoers 와 배포 워크플로의 리로드 대상에 `php8.5-fpm` 을 추가한다.
 
 > **writable 소유권 주의**: 런타임에 아파치(`www-data`)가 `writable/cache`·`session` 에
 > 파일을 만들면 배포 계정이 소유하지 않아 `chmod` 가 실패할 수 있다. 배포 워크플로우는
@@ -543,13 +543,13 @@ cd <DEPLOY_PATH> && php spark db:seed AdminUserSeeder
 
 | 항목 | 버전 | 용도 |
 |------|------|------|
-| Apache HTTP Server | 2.4+ | 웹 서버 (mod_php) — `DocumentRoot` 는 `public/` |
-| PHP (mod_php) | 8.4+ | 웹 요청 처리 (`php-mysql` 확장 포함) |
+| Apache HTTP Server | 2.4+ | 웹 서버 (mpm_event + `proxy_fcgi`) — `DocumentRoot` 는 `public/` |
+| PHP-FPM | 8.4+ (운영 8.5) | 웹 요청 처리 (`php-mysql` 확장 포함) |
 | PHP CLI | 8.4+ | composer · spark · PHPStan (배포 스크립트) |
 | MySQL | 8.0+ | 데이터베이스 |
 
 - 배포 자동화(SSH)는 위 [CD (배포)](#cd-배포) 참고 — deploy key · `.env` · NOPASSWD sudo 필요
-- OPcache 갱신은 `sudo systemctl reload apache2`(무중단). PHP-FPM 구성이면 `php8.4-fpm` 리로드
+- OPcache 즉시 갱신은 `sudo systemctl reload php8.5-fpm`(무중단). 배포 워크플로는 현재 `apache2` 만 리로드하므로 바뀐 파일은 `opcache.validate_timestamps` 로 반영된다
 
 ### 로컬 개발
 
@@ -559,7 +559,7 @@ cd <DEPLOY_PATH> && php spark db:seed AdminUserSeeder
 | PHP CLI | 8.4+ | composer · spark · 테스트 |
 | MySQL | 8.0+ | 데이터베이스 |
 
-> 로컬은 FrankenPHP, 프로덕션은 아파치(mod_php)로 서로 다르다. CI4 는 두 환경 모두 `public/` 을 문서 루트로 사용한다.
+> 로컬은 FrankenPHP, 프로덕션은 아파치 + PHP-FPM 으로 서로 다르다. CI4 는 두 환경 모두 `public/` 을 문서 루트로 사용한다.
 
 **필수 PHP 확장**: `intl` `mbstring` `json` `mysqlnd` `curl` `gd` `xml` `zip`
 
