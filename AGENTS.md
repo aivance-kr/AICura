@@ -115,7 +115,7 @@ return $this->render('admin/campaigns/index', ['campaigns' => $campaigns]);
 
 ### 배포
 
-- `main` push와 `workflow_dispatch`(롤백·수동 실행)로 Ubuntu + mod_php Apache 서버에 SSH 배포한다. `deploy-production` 동시성 그룹은 한 번에 하나만 실행하며 진행 중 배포를 취소하지 않는다.
+- `main` push와 `workflow_dispatch`(롤백·수동 실행)로 Ubuntu + Apache + PHP-FPM(`php8.5-fpm`) 서버에 SSH 배포한다. `deploy-production` 동시성 그룹은 한 번에 하나만 실행하며 진행 중 배포를 취소하지 않는다.
 - SSH에는 TTY를 할당하지 않는다. `sudo -n systemctl reload apache2`와 Apache 자식 프로세스 때문에 `-t`/`-tt`를 쓰면 세션이 끝나지 않을 수 있다.
 - 배포는 `git reset --hard origin/main` → `writable/` 생성 → `composer install --no-dev --optimize-autoloader` → `php spark migrate --all -f` 출력 검사 → `AdminUserSeeder` 실행(재실행 안전) → 캐시 정리 → `sudo -n systemctl reload apache2` 순서다.
 - `php spark migrate`는 예외에도 종료 코드 0을 낼 수 있으므로, 배포 스크립트의 예외 출력 검사 로직을 유지한다.
